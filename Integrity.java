@@ -1,22 +1,15 @@
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPublicKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -54,17 +47,23 @@ public class Integrity {
         //VERIFY DOGRUYSA
         if(isCorrect){
             AtomicBoolean isThereChange = new AtomicBoolean(false);
-            Map<String, String> files = Arrays.stream(registerFileContent.get("content").split("\n")).collect(Collectors.toMap(o -> o.split(" ")[0], o -> o.split(" ")[1]));
+            Map<String, String> files = null;
+            try{
+                files = Arrays.stream(registerFileContent.get("content").split("\n")).collect(Collectors.toMap(o -> o.split(" ")[0], o -> o.split(" ")[1]));
+            }catch (Exception e){
+                files = new HashMap<>();
+            }
 
 
             //PATH DEKI FILE LAR ILE REGISTRY FILE ICINDEKI FILE LARIN HASH DEGERLERINI KIYASLAMA VE SONUCA GORE LOG YAZMA
             Stream<Path> walk = Files.walk(Paths.get(filesWhichWillBeHashedOnThatPath));
             BufferedWriter finalLogFileWriter = logFileWriter;
+            Map<String, String> finalFiles = files;
             walk.filter(Files::isRegularFile)
                     .forEach(
                             file -> {
                                 String fileName = file.toString();
-                                if(!files.containsKey(fileName)){
+                                if(!finalFiles.containsKey(fileName)){
                                     try {
                                         finalLogFileWriter.write(getCurrentTimeStamp()+": "+fileName+" is "+ChangeType.CREATED+"\n");
                                         finalLogFileWriter.flush();
@@ -75,7 +74,7 @@ public class Integrity {
                                 }else{
                                     String content = File.read(fileName);
                                     byte[] digest = Hash.getDigest(hashMethod, content);
-                                    if(!Arrays.equals(digest,Base64.getDecoder().decode(files.get(fileName)))){
+                                    if(!Arrays.equals(digest,Base64.getDecoder().decode(finalFiles.get(fileName)))){
                                         try {
                                             finalLogFileWriter.write(getCurrentTimeStamp()+": "+fileName+" is "+ChangeType.ALTERED+"\n");
                                             finalLogFileWriter.flush();
@@ -84,7 +83,7 @@ public class Integrity {
                                             e.printStackTrace();
                                         }
                                     }
-                                    files.remove(fileName);
+                                    finalFiles.remove(fileName);
                                 }
                             }
                     );

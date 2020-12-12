@@ -1,15 +1,12 @@
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.sql.Timestamp;
@@ -24,7 +21,6 @@ public abstract class CreateReg {
     public static void work(String[] args){
 
         BufferedWriter logFileWriter = null;
-        String thisIsPrivateKeyString = "This is private key\n";
         try {
             String logFilePath = args[6];
             String privateKeyFilePath = args[10];
@@ -56,7 +52,7 @@ public abstract class CreateReg {
 
         } catch (BadPaddingException e){ //WRONG PASSWORD LOGGING AND TERMINATE APP
             try {
-                logFileWriter.write(getCurrentTimeStamp()+" Wrong password attempt'\n");
+                logFileWriter.write(getCurrentTimeStamp()+" Wrong password attempt!\n");
                 logFileWriter.close();
                 System.exit(1);
             }catch (Exception e2){
@@ -85,6 +81,7 @@ public abstract class CreateReg {
                                 registerFileWriter.write(fileName+" "+Base64.getEncoder().encodeToString(digest)+"\n");
                                 registerFileWriter.flush();
                                 fileCounter.getAndIncrement();
+                                logFileWriter.write(getCurrentTimeStamp()+": "+fileName+" is added to the registry.\n");
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -95,9 +92,9 @@ public abstract class CreateReg {
 
     private static String decryptPrivateKey(String privateKeyFilePath) throws Exception {
         //PRIVATE KEY READING AND DECRYPT WITH HASH VALUE
-        byte[] md5PasswordDigest = getHashedPasswordFromConsole();
+        byte[] aesKey = getHashedPasswordFromConsole();
         String privateKeyFromPrivateKeyFile = File.read(privateKeyFilePath);
-        return EncryptionDecryption.decrypt(privateKeyFromPrivateKeyFile, "AES", new SecretKeySpec(md5PasswordDigest, "AES"));
+        return EncryptionDecryption.decrypt(privateKeyFromPrivateKeyFile, "AES", new SecretKeySpec(aesKey, "AES"));
     }
 
     private static byte[] sign(String hashMethod,String decryptedPrivateKey,byte[] registerFileAllContentDigest) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, UnrecoverableKeyException, KeyStoreException, InvalidKeySpecException {
@@ -110,7 +107,7 @@ public abstract class CreateReg {
 
     private static byte[] getHashedPasswordFromConsole(){
         //PASSWORD FROM CONSOLE HASHING MD5
-        System.out.print("Enter password: ");
+        System.out.print("Enter password: (for AES KEY while decryption of private key ) : ");
         Scanner scanner = new Scanner(System.in);
         String passwordFromConsole = scanner.nextLine();
         return Hash.getDigest("MD5", passwordFromConsole);

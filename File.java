@@ -70,7 +70,8 @@ public abstract class File {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        map.put("content", stringBuilder != null ? stringBuilder.substring(0, stringBuilder.length() - signature.length() -1) : null);
+
+        map.put("content", !stringBuilder.toString().split("\n")[0].equals(signature) ? stringBuilder.substring(0, stringBuilder.length() - signature.length() -1) : null);
         map.put("signature",signature);
         return map;
     }
